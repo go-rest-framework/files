@@ -2,6 +2,7 @@ package files
 
 import (
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -145,54 +146,14 @@ func actionUpload(w http.ResponseWriter, r *http.Request) {
 		rsp       = core.Response{Data: &filemodel}
 	)
 
-	// Parse our multipart form, 10 << 20 specifies a maximum
-	// upload of 10 MB files.
-	r.ParseMultipartForm(10 << 20)
-	// FormFile returns the first file for the given key `myFile`
-	// it also returns the FileHeader so we can get the Filename,
-	// the Header and the size of the file
-	file, handler, err := r.FormFile("file")
+	filemodel, err := upload(r)
 	if err != nil {
-		fmt.Println("Error Retrieving the File")
-		fmt.Println(err)
-		return
+		rsp.Errors.Add("file", err.Error())
+	} else {
+		App.DB.Create(&filemodel)
+
+		rsp.Data = &filemodel
 	}
-	defer file.Close()
-	filename := strings.TrimSuffix(handler.Filename, path.Ext(handler.Filename))
-	fileext := path.Ext(handler.Filename)
-
-	// Create a temporary file within our temp-images directory that follows
-	// a particular naming pattern
-	tempFile, err := ioutil.TempFile("web/uploads", "*"+filename+fileext)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer tempFile.Close()
-
-	// read all of the contents of our uploaded file into a
-	// byte array
-	fileBytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		fmt.Println(err)
-	}
-	// write this byte array to our temporary file
-	tempFile.Write(fileBytes)
-
-	filemodel = File{
-		UserID: 0,
-		Name:   filename,
-		Path:   tempFile.Name(),
-		Ext:    fileext,
-		Preset: "notset",
-		Size:   handler.Size,
-		Status: 0,
-		Type:   0,
-		Hash:   fmt.Sprintf("%x", md5.Sum(fileBytes)),
-	}
-
-	App.DB.Create(&filemodel)
-
-	rsp.Data = &filemodel
 
 	w.Write(rsp.Make())
 }
@@ -203,54 +164,24 @@ func actionReUpload(w http.ResponseWriter, r *http.Request) {
 		rsp       = core.Response{Data: &filemodel}
 	)
 
-	// Parse our multipart form, 10 << 20 specifies a maximum
-	// upload of 10 MB files.
-	r.ParseMultipartForm(10 << 20)
-	// FormFile returns the first file for the given key `myFile`
-	// it also returns the FileHeader so we can get the Filename,
-	// the Header and the size of the file
-	file, handler, err := r.FormFile("file")
+	data, err := upload(r)
 	if err != nil {
-		fmt.Println("Error Retrieving the File")
-		fmt.Println(err)
-		return
+		rsp.Errors.Add("file", err.Error())
+	} else {
+		vars := mux.Vars(r)
+		App.DB.First(&filemodel, vars["id"])
+
+		if filemodel.ID == 0 {
+			rsp.Errors.Add("ID", "Contentelement not found")
+		} else {
+			//idstring := fmt.Sprintf("%d", filemodel.UserID)
+			//if idstring != r.Header.Get("id") {
+			//rsp.Errors.Add("ID", "Only owner can change element")
+			//} else {
+			App.DB.Model(&filemodel).Updates(data)
+			//}
+		}
 	}
-	defer file.Close()
-	filename := strings.TrimSuffix(handler.Filename, path.Ext(handler.Filename))
-	fileext := path.Ext(handler.Filename)
-
-	// Create a temporary file within our temp-images directory that follows
-	// a particular naming pattern
-	tempFile, err := ioutil.TempFile("web/uploads", "*"+filename+fileext)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer tempFile.Close()
-
-	// read all of the contents of our uploaded file into a
-	// byte array
-	fileBytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		fmt.Println(err)
-	}
-	// write this byte array to our temporary file
-	tempFile.Write(fileBytes)
-
-	filemodel = File{
-		UserID: 0,
-		Name:   filename,
-		Path:   tempFile.Name(),
-		Ext:    fileext,
-		Preset: "notset",
-		Size:   handler.Size,
-		Status: 0,
-		Type:   0,
-		Hash:   fmt.Sprintf("%x", md5.Sum(fileBytes)),
-	}
-
-	App.DB.Create(&filemodel)
-
-	rsp.Data = &filemodel
 
 	w.Write(rsp.Make())
 }
@@ -277,4 +208,49 @@ func actionDelete(w http.ResponseWriter, r *http.Request) {
 	rsp.Data = &file
 
 	w.Write(rsp.Make())
+}
+
+func upload(r *http.Request) (File, error) {
+	// Parse our multipart form, 10 << 20 specifies a maximum
+	// upload of 10 MB files.
+	r.ParseMultipartForm(10 << 20)
+	// FormFile returns the first file for the given key `myFile`
+	// it also returns the FileHeader so we can get the Filename,
+	// the Header and the size of the file
+	file, handler, err := r.FormFile("file")
+	if err != nil {
+		return File{}, errors.New("Error Retrieving the File")
+	}
+	defer file.Close()
+	filename := strings.TrimSuffix(handler.Filename, path.Ext(handler.Filename))
+	fileext := path.Ext(handler.Filename)
+
+	// Create a temporary file within our temp-images directory that follows
+	// a particular naming pattern
+	tempFile, err := ioutil.TempFile("web/uploads", "*"+filename+fileext)
+	if err != nil {
+		return File{}, err
+	}
+	defer tempFile.Close()
+
+	// read all of the contents of our uploaded file into a
+	// byte array
+	fileBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		return File{}, err
+	}
+	// write this byte array to our temporary file
+	tempFile.Write(fileBytes)
+
+	return File{
+		UserID: 0,
+		Name:   filename,
+		Path:   tempFile.Name(),
+		Ext:    fileext,
+		Preset: "notset",
+		Size:   handler.Size,
+		Status: 0,
+		Type:   0,
+		Hash:   fmt.Sprintf("%x", md5.Sum(fileBytes)),
+	}, nil
 }
