@@ -16,10 +16,12 @@ import (
 
 	"github.com/go-rest-framework/core"
 	"github.com/go-rest-framework/files"
+	"github.com/go-rest-framework/users"
 )
 
 var OneID uint
 var OneNewID uint
+var AdminToken string
 var Murl = "http://gorest.ga/api/files"
 
 type TestFiles struct {
@@ -30,6 +32,11 @@ type TestFiles struct {
 type TestFile struct {
 	Errors []core.ErrorMsg `json:"errors"`
 	Data   files.File      `json:"data"`
+}
+
+type TestUser struct {
+	Errors []core.ErrorMsg `json:"errors"`
+	Data   users.User      `json:"data"`
 }
 
 func doRequest(url, proto, userJson, token string) *http.Response {
@@ -90,6 +97,7 @@ func doUpload(url, proto, filepath string) *http.Response {
 	}
 	// Don't forget to set the content type, this will contain the boundary.
 	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+AdminToken)
 
 	// Submit the request
 	resp, err := http.DefaultClient.Do(req)
@@ -128,6 +136,17 @@ func readFilesBody(r *http.Response, t *testing.T) TestFiles {
 	return u
 }
 
+func readUserBody(r *http.Response, t *testing.T) TestUser {
+	var u TestUser
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	json.Unmarshal([]byte(body), &u)
+	defer r.Body.Close()
+	return u
+}
+
 func toUrlcode(str string) (string, error) {
 	u, err := url.Parse(str)
 	if err != nil {
@@ -139,7 +158,7 @@ func toUrlcode(str string) (string, error) {
 func deleteFile(t *testing.T, id uint) {
 	url := fmt.Sprintf("%s%s%d", Murl, "/", id)
 
-	resp := doRequest(url, "DELETE", "", "")
+	resp := doRequest(url, "DELETE", "", AdminToken)
 
 	if resp.StatusCode != 200 {
 		t.Errorf("Success expected: %d", resp.StatusCode)
@@ -151,6 +170,24 @@ func deleteFile(t *testing.T, id uint) {
 		t.Errorf("Error when delete id = %d", id)
 		t.Fatal(u.Errors)
 	}
+
+	return
+}
+
+func TestAdminLogin(t *testing.T) {
+
+	url := "http://gorest.ga/api/users/login"
+	var userJson = `{"email":"admin@admin.a", "password":"adminpass"}`
+
+	resp := doRequest(url, "POST", userJson, "")
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Success expected: %d", resp.StatusCode)
+	}
+
+	u := readUserBody(resp, t)
+
+	AdminToken = u.Data.Token
 
 	return
 }
@@ -287,7 +324,7 @@ func TestUpdate(t *testing.T) {
 func TestDelete(t *testing.T) {
 	url := fmt.Sprintf("%s%s%d", Murl, "/", 0)
 
-	resp := doRequest(url, "DELETE", "", "")
+	resp := doRequest(url, "DELETE", "", AdminToken)
 
 	if resp.StatusCode != 200 {
 		t.Errorf("Success expected: %d", resp.StatusCode)
