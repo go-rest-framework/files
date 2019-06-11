@@ -17,12 +17,21 @@ import (
 	"github.com/go-rest-framework/core"
 	"github.com/go-rest-framework/files"
 	"github.com/go-rest-framework/users"
+	"github.com/icrowley/fake"
 )
 
-var OneID uint
 var OneNewID uint
+var OneANewID uint
 var AdminToken string
+var OneGroup string
+var OneTitle string
+var NewOneTitle string
+var NewAOneTitle string
+var TestFileUserID int
+var TestFileID uint
+var TestFileHash string
 var Murl = "http://gorest.ga/api/files"
+var AMurl = "http://gorest.ga/api/attachments"
 
 type TestFiles struct {
 	Errors []core.ErrorMsg `json:"errors"`
@@ -32,6 +41,16 @@ type TestFiles struct {
 type TestFile struct {
 	Errors []core.ErrorMsg `json:"errors"`
 	Data   files.File      `json:"data"`
+}
+
+type TestAttachments struct {
+	Errors []core.ErrorMsg   `json:"errors"`
+	Data   files.Attachments `json:"data"`
+}
+
+type TestAttachment struct {
+	Errors []core.ErrorMsg  `json:"errors"`
+	Data   files.Attachment `json:"data"`
 }
 
 type TestUser struct {
@@ -136,6 +155,26 @@ func readFilesBody(r *http.Response, t *testing.T) TestFiles {
 	return u
 }
 
+func readAttachmentBody(r *http.Response, t *testing.T) TestAttachment {
+	var u TestAttachment
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	json.Unmarshal([]byte(body), &u)
+	return u
+}
+
+func readAttachmentsBody(r *http.Response, t *testing.T) TestAttachments {
+	var u TestAttachments
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	json.Unmarshal([]byte(body), &u)
+	return u
+}
+
 func readUserBody(r *http.Response, t *testing.T) TestUser {
 	var u TestUser
 	body, err := ioutil.ReadAll(r.Body)
@@ -205,7 +244,47 @@ func TestUpload(t *testing.T) {
 		t.Fatal(u.Errors)
 	}
 
-	OneID = u.Data.ID
+	TestFileID = u.Data.ID
+	TestFileUserID = u.Data.UserID
+	TestFileHash = u.Data.Hash
+}
+
+func TestAttachmentCreate(t *testing.T) {
+	url := AMurl
+	OneGroup = fake.Word()
+	OneTitle = fake.Title()
+	el := &files.Attachment{
+		UserID:      TestFileUserID,
+		Group:       OneGroup,
+		FileID:      int(TestFileID),
+		Title:       OneTitle,
+		Description: fake.Paragraphs(),
+		IsMain:      0,
+		Hash:        TestFileHash,
+		Index:       0,
+	}
+
+	uj, err := json.Marshal(el)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		return
+	}
+
+	resp := doRequest(url, "POST", string(uj), AdminToken)
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Success expected: %d", resp.StatusCode)
+	}
+
+	u := readAttachmentBody(resp, t)
+
+	if len(u.Errors) != 0 {
+		t.Fatal(u.Errors)
+	}
+
+	OneANewID = u.Data.ID
+
+	return
 }
 
 func TestGetOne(t *testing.T) {
@@ -222,7 +301,7 @@ func TestGetOne(t *testing.T) {
 		t.Fatal("element not found dont work")
 	}
 
-	url = fmt.Sprintf("%s%s%d", Murl, "/", OneID)
+	url = fmt.Sprintf("%s%s%d", Murl, "/", TestFileID)
 
 	resp = doRequest(url, "GET", "", " ")
 
@@ -237,6 +316,42 @@ func TestGetOne(t *testing.T) {
 	}
 
 	return
+}
+
+func TestAttachmentGetOne(t *testing.T) {
+	url := AMurl + "/0"
+	resp := doRequest(url, "GET", "", " ")
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Success expected: %d", resp.StatusCode)
+	}
+
+	u := readAttachmentBody(resp, t)
+
+	if len(u.Errors) == 0 {
+		t.Fatal("element not found dont work")
+	}
+
+	url = fmt.Sprintf("%s%s%d", AMurl, "/", OneANewID)
+
+	resp = doRequest(url, "GET", "", " ")
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Success expected: %d", resp.StatusCode)
+	}
+
+	u = readAttachmentBody(resp, t)
+
+	if len(u.Errors) != 0 {
+		t.Fatal(u.Errors)
+	}
+
+	if u.Data.File.ID != TestFileID {
+		t.Errorf("No file object in attachment: %+v", u.Data)
+	}
+
+	return
+
 }
 
 func TestGetAll(t *testing.T) {
@@ -304,8 +419,53 @@ func TestGetAll(t *testing.T) {
 	return
 }
 
+func TestAttachmentGetGroup(t *testing.T) {
+	// get count
+	url := AMurl
+
+	resp := doRequest(url, "GET", "", " ")
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Success expected: %d", resp.StatusCode)
+	}
+
+	u := readAttachmentsBody(resp, t)
+
+	if len(u.Errors) != 0 {
+		t.Fatal(u.Errors)
+	}
+
+	if len(u.Data) == 0 {
+		t.Errorf("Wrong elements count: %d", len(u.Data))
+	}
+
+	//---------------
+
+	group, _ := toUrlcode(OneGroup)
+
+	url1 := AMurl + "?group=" + group
+
+	resp1 := doRequest(url1, "GET", "", " ")
+
+	if resp1.StatusCode != 200 {
+		t.Errorf("Success expected: %d%s", resp1.StatusCode, url1)
+	}
+
+	u1 := readAttachmentsBody(resp1, t)
+
+	if len(u1.Errors) != 0 {
+		t.Fatal(u1.Errors)
+	}
+
+	if u1.Data[0].Title != OneTitle {
+		t.Errorf("Wrong group search - : %s", u1.Data[0].Title)
+	}
+
+	return
+}
+
 func TestUpdate(t *testing.T) {
-	url := fmt.Sprintf("%s%s%d", Murl, "/", OneID)
+	url := fmt.Sprintf("%s%s%d", Murl, "/", TestFileID)
 	resp := doUpload(url, "PATCH", "test_pic2.png")
 
 	if resp.StatusCode != http.StatusOK {
@@ -319,6 +479,30 @@ func TestUpdate(t *testing.T) {
 	}
 
 	OneNewID = u.Data.ID
+}
+
+func TestAttachmentUpdate(t *testing.T) {
+	NewAOneTitle = fake.Title()
+	url := fmt.Sprintf("%s%s%d", AMurl, "/", OneANewID)
+	userJson := `{"title":"` + NewAOneTitle + `"}`
+
+	resp := doRequest(url, "PATCH", userJson, AdminToken)
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Success expected: %d", resp.StatusCode)
+	}
+
+	u := readAttachmentBody(resp, t)
+
+	if len(u.Errors) != 0 {
+		t.Fatal(u.Errors)
+	}
+
+	if u.Data.Title != NewAOneTitle {
+		t.Errorf("Wrong new title : %+v", u.Data)
+	}
+
+	return
 }
 
 func TestDelete(t *testing.T) {
@@ -336,7 +520,39 @@ func TestDelete(t *testing.T) {
 		t.Fatal("wrong id validation dont work")
 	}
 
-	deleteFile(t, OneID)
+	deleteFile(t, TestFileID)
+
+	return
+}
+
+func TestAttachmentDelete(t *testing.T) {
+	url := fmt.Sprintf("%s%s%d", AMurl, "/", 0)
+
+	resp := doRequest(url, "DELETE", "", AdminToken)
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Success expected: %d", resp.StatusCode)
+	}
+
+	u := readAttachmentBody(resp, t)
+
+	if len(u.Errors) == 0 {
+		t.Fatal("wrong id validation dont work")
+	}
+
+	url = fmt.Sprintf("%s%s%d", AMurl, "/", OneANewID)
+
+	resp = doRequest(url, "DELETE", "", AdminToken)
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Success expected: %d", resp.StatusCode)
+	}
+
+	u = readAttachmentBody(resp, t)
+
+	if len(u.Errors) != 0 {
+		t.Fatal(u.Errors)
+	}
 
 	return
 }

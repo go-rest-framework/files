@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/go-rest-framework/core"
@@ -30,17 +31,6 @@ type File struct {
 	Status int    `json:"status"`
 	Type   int    `json:"type"`
 	Hash   string `json:"hash"`
-}
-
-type Attachment struct {
-	gorm.Model
-	Group       string `json:"group"`
-	FileID      int    `json:"fileID"`
-	Title       string `json:"title"`
-	Description string `json:"description" gorm:"type:text"`
-	IsMain      int    `json:"isMain"`
-	Hash        string `json:"hash"`
-	Index       int    `json:"index" gorm:"type:int(6)"`
 }
 
 func Configure(a core.App) {
@@ -67,6 +57,24 @@ func Configure(a core.App) {
 		"/api/files/{id}",
 		App.Protect(
 			actionDelete,
+			[]string{"admin", "user"})).Methods("DELETE")
+
+	App.R.HandleFunc("/api/attachments", actionAttchGetAll).Methods("GET")
+	App.R.HandleFunc("/api/attachments/{id}", actionAttachGetOne).Methods("GET")
+	App.R.HandleFunc(
+		"/api/attachments",
+		App.Protect(
+			actionAttachCreate,
+			[]string{"admin", "user"})).Methods("POST")
+	App.R.HandleFunc(
+		"/api/attachments/{id}",
+		App.Protect(
+			actionAttachUpdate,
+			[]string{"admin", "user"})).Methods("PATCH")
+	App.R.HandleFunc(
+		"/api/attachments/{id}",
+		App.Protect(
+			actionAttachDelete,
 			[]string{"admin", "user"})).Methods("DELETE")
 }
 
@@ -102,8 +110,10 @@ func upload(r *http.Request) (File, error) {
 	// write this byte array to our temporary file
 	tempFile.Write(fileBytes)
 
+	userid, _ := strconv.Atoi(r.Header.Get("id"))
+
 	return File{
-		UserID: 0,
+		UserID: userid,
 		Name:   filename,
 		Path:   tempFile.Name(),
 		Ext:    fileext,
@@ -139,7 +149,7 @@ func actionGetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if id != "" {
-		db = db.Where("id LIKE ?", "%"+id+"%")
+		db = db.Where("id = ?", id)
 	}
 
 	if name != "" {
