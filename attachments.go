@@ -29,7 +29,7 @@ type Attachment struct {
 func actionAttchGetAll(w http.ResponseWriter, r *http.Request) {
 	var (
 		attachments Attachments
-		rsp         = core.Response{Data: &attachments}
+		rsp         = core.Response{Data: &attachments, Req: r}
 		all         = r.FormValue("all")
 		id          = r.FormValue("id")
 		group       = r.FormValue("group")
@@ -96,7 +96,7 @@ func actionAttchGetAll(w http.ResponseWriter, r *http.Request) {
 func actionAttachGetOne(w http.ResponseWriter, r *http.Request) {
 	var (
 		attachment Attachment
-		rsp        = core.Response{Data: &attachment}
+		rsp        = core.Response{Data: &attachment, Req: r}
 		db         = App.DB
 	)
 
@@ -119,7 +119,7 @@ func actionAttachGetOne(w http.ResponseWriter, r *http.Request) {
 func actionAttachCreate(w http.ResponseWriter, r *http.Request) {
 	var (
 		attachment Attachment
-		rsp        = core.Response{Data: &attachment}
+		rsp        = core.Response{Data: &attachment, Req: r}
 	)
 
 	if rsp.IsJsonParseDone(r.Body) {
@@ -139,7 +139,7 @@ func actionAttachUpdate(w http.ResponseWriter, r *http.Request) {
 	var (
 		data       Attachment
 		attachment Attachment
-		rsp        = core.Response{Data: &data}
+		rsp        = core.Response{Data: &data, Req: r}
 	)
 
 	if rsp.IsJsonParseDone(r.Body) {
@@ -171,7 +171,7 @@ func actionAttachUpdate(w http.ResponseWriter, r *http.Request) {
 func actionAttachDelete(w http.ResponseWriter, r *http.Request) {
 	var (
 		attachment Attachment
-		rsp        = core.Response{Data: &attachment}
+		rsp        = core.Response{Data: &attachment, Req: r}
 	)
 
 	vars := mux.Vars(r)

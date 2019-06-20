@@ -128,7 +128,7 @@ func upload(r *http.Request) (File, error) {
 func actionGetAll(w http.ResponseWriter, r *http.Request) {
 	var (
 		files  Files
-		rsp    = core.Response{Data: &files}
+		rsp    = core.Response{Data: &files, Req: r}
 		all    = r.FormValue("all")
 		id     = r.FormValue("id")
 		name   = r.FormValue("name")
@@ -190,7 +190,7 @@ func actionGetAll(w http.ResponseWriter, r *http.Request) {
 func actionGetOne(w http.ResponseWriter, r *http.Request) {
 	var (
 		file File
-		rsp  = core.Response{Data: &file}
+		rsp  = core.Response{Data: &file, Req: r}
 		db   = App.DB
 	)
 
@@ -210,7 +210,7 @@ func actionGetOne(w http.ResponseWriter, r *http.Request) {
 func actionUpload(w http.ResponseWriter, r *http.Request) {
 	var (
 		filemodel File
-		rsp       = core.Response{Data: &filemodel}
+		rsp       = core.Response{Data: &filemodel, Req: r}
 	)
 
 	filemodel, err := upload(r)
@@ -228,7 +228,7 @@ func actionUpload(w http.ResponseWriter, r *http.Request) {
 func actionReUpload(w http.ResponseWriter, r *http.Request) {
 	var (
 		filemodel File
-		rsp       = core.Response{Data: &filemodel}
+		rsp       = core.Response{Data: &filemodel, Req: r}
 	)
 
 	vars := mux.Vars(r)
@@ -262,7 +262,7 @@ func actionReUpload(w http.ResponseWriter, r *http.Request) {
 func actionDelete(w http.ResponseWriter, r *http.Request) {
 	var (
 		file File
-		rsp  = core.Response{Data: &file}
+		rsp  = core.Response{Data: &file, Req: r}
 	)
 
 	vars := mux.Vars(r)
