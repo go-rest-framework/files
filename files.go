@@ -41,38 +41,38 @@ func Configure(a core.App) {
 	//public actions
 
 	//protect CRUD actions with files info
-	App.R.HandleFunc("/api/files", actionGetAll).Methods("GET")
-	App.R.HandleFunc("/api/files/{id}", actionGetOne).Methods("GET")
+	App.R.HandleFunc("/files", actionGetAll).Methods("GET")
+	App.R.HandleFunc("/files/{id}", actionGetOne).Methods("GET")
 	App.R.HandleFunc(
-		"/api/files",
+		"/files",
 		App.Protect(
 			actionUpload,
 			[]string{"admin", "user"})).Methods("POST")
 	App.R.HandleFunc(
-		"/api/files/{id}",
+		"/files/{id}",
 		App.Protect(
 			actionReUpload,
 			[]string{"admin", "user"})).Methods("PATCH")
 	App.R.HandleFunc(
-		"/api/files/{id}",
+		"/files/{id}",
 		App.Protect(
 			actionDelete,
 			[]string{"admin", "user"})).Methods("DELETE")
 
-	App.R.HandleFunc("/api/attachments", actionAttchGetAll).Methods("GET")
-	App.R.HandleFunc("/api/attachments/{id}", actionAttachGetOne).Methods("GET")
+	App.R.HandleFunc("/attachments", actionAttchGetAll).Methods("GET")
+	App.R.HandleFunc("/attachments/{id}", actionAttachGetOne).Methods("GET")
 	App.R.HandleFunc(
-		"/api/attachments",
+		"/attachments",
 		App.Protect(
 			actionAttachCreate,
 			[]string{"admin", "user"})).Methods("POST")
 	App.R.HandleFunc(
-		"/api/attachments/{id}",
+		"/attachments/{id}",
 		App.Protect(
 			actionAttachUpdate,
 			[]string{"admin", "user"})).Methods("PATCH")
 	App.R.HandleFunc(
-		"/api/attachments/{id}",
+		"/attachments/{id}",
 		App.Protect(
 			actionAttachDelete,
 			[]string{"admin", "user"})).Methods("DELETE")

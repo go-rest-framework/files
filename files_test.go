@@ -30,8 +30,8 @@ var NewAOneTitle string
 var TestFileUserID int
 var TestFileID uint
 var TestFileHash string
-var Murl = "http://gorest.ga/api/files"
-var AMurl = "http://gorest.ga/api/attachments"
+var Murl = "http://localhost/api/files"
+var AMurl = "http://localhost/api/attachments"
 
 type TestFiles struct {
 	Errors []core.ErrorMsg `json:"errors"`
@@ -215,7 +215,7 @@ func deleteFile(t *testing.T, id uint) {
 
 func TestAdminLogin(t *testing.T) {
 
-	url := "http://gorest.ga/api/users/login"
+	url := "http://localhost/api/users/login"
 	var userJson = `{"email":"admin@admin.a", "password":"adminpass"}`
 
 	resp := doRequest(url, "POST", userJson, "")
