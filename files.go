@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-rest-framework/core"
 	"github.com/gorilla/mux"
@@ -25,6 +28,7 @@ type File struct {
 	UserID int    `json:"userID"`
 	Name   string `json:"name"`
 	Path   string `json:"path"`
+	Src    string `json:"src"`
 	Ext    string `json:"ext" gorm:"type:varchar(10)"`
 	Preset string `json:"preset"`
 	Size   int64  `json:"size"`
@@ -78,6 +82,15 @@ func Configure(a core.App) {
 			[]string{"admin", "user"})).Methods("DELETE")
 }
 
+func CreateDirIfNotExist(dir string) {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err = os.MkdirAll(dir, 0755)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
 func upload(r *http.Request) (File, error) {
 	// Parse our multipart form, 10 << 20 specifies a maximum
 	// upload of 10 MB files.
@@ -93,29 +106,42 @@ func upload(r *http.Request) (File, error) {
 	filename := strings.TrimSuffix(handler.Filename, path.Ext(handler.Filename))
 	fileext := path.Ext(handler.Filename)
 
-	// Create a temporary file within our temp-images directory that follows
-	// a particular naming pattern
-	tempFile, err := ioutil.TempFile("web/uploads", "*"+filename+fileext)
-	if err != nil {
-		return File{}, err
-	}
-	defer tempFile.Close()
-
-	// read all of the contents of our uploaded file into a
-	// byte array
 	fileBytes, err := ioutil.ReadAll(file)
 	if err != nil {
 		return File{}, err
 	}
-	// write this byte array to our temporary file
-	tempFile.Write(fileBytes)
+
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(dir)
+
+	tm := time.Now()
+	d := 24 * time.Hour
+
+	userpersonaldir := fmt.Sprintf("%x", md5.Sum([]byte(r.Header.Get("id"))))
+	userdatedir := fmt.Sprintf("%d", tm.Truncate(d).Unix())
+
+	userdir := dir + "/" + App.Config.WebRootPath + "/" + App.Config.UploadsPath
+	userdir += "/" + userpersonaldir
+	userdir += "/" + userdatedir
+
+	CreateDirIfNotExist(userdir)
+
+	err = ioutil.WriteFile(userdir+"/"+filename+fileext, fileBytes, 0644)
+
+	if err != nil {
+		return File{}, err
+	}
 
 	userid, _ := strconv.Atoi(r.Header.Get("id"))
 
 	return File{
 		UserID: userid,
 		Name:   filename,
-		Path:   tempFile.Name(),
+		Path:   userdir + "/" + filename + fileext,
+		Src:    "/" + App.Config.UploadsPath + "/" + userpersonaldir + "/" + userdatedir + "/" + filename + fileext,
 		Ext:    fileext,
 		Preset: "notset",
 		Size:   handler.Size,

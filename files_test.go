@@ -29,7 +29,6 @@ var NewOneTitle string
 var NewAOneTitle string
 var TestFileUserID int
 var TestFileID uint
-var TestFileHash string
 var Murl = "http://localhost/api/files"
 var AMurl = "http://localhost/api/attachments"
 
@@ -232,7 +231,7 @@ func TestAdminLogin(t *testing.T) {
 }
 
 func TestUpload(t *testing.T) {
-	resp := doUpload(Murl, "POST", "test_pic.png")
+	resp := doUpload(Murl, "POST", "test_pic1.png")
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("bad status: %s", resp.Status)
@@ -246,7 +245,6 @@ func TestUpload(t *testing.T) {
 
 	TestFileID = u.Data.ID
 	TestFileUserID = u.Data.UserID
-	TestFileHash = u.Data.Hash
 }
 
 func TestAttachmentCreate(t *testing.T) {
@@ -254,13 +252,11 @@ func TestAttachmentCreate(t *testing.T) {
 	OneGroup = fake.Word()
 	OneTitle = fake.Title()
 	el := &files.Attachment{
-		UserID:      TestFileUserID,
 		Group:       OneGroup,
 		FileID:      int(TestFileID),
 		Title:       OneTitle,
 		Description: fake.Paragraphs(),
 		IsMain:      0,
-		Hash:        TestFileHash,
 		Index:       0,
 	}
 
@@ -376,7 +372,7 @@ func TestGetAll(t *testing.T) {
 
 	//---------------
 
-	uname, _ := toUrlcode("test_pic")
+	uname, _ := toUrlcode("test_pic1")
 
 	url1 := Murl + "?name=" + uname
 
@@ -392,7 +388,7 @@ func TestGetAll(t *testing.T) {
 		t.Fatal(u1.Errors)
 	}
 
-	if u1.Data[0].Name != "test_pic" {
+	if u1.Data[0].Name != "test_pic1" {
 		t.Errorf("Wrong name search - : %s", u1.Data[0].Name)
 	}
 

@@ -21,7 +21,6 @@ type Attachment struct {
 	Title       string `json:"title"`
 	Description string `json:"description" gorm:"type:text"`
 	IsMain      int    `json:"isMain"`
-	Hash        string `json:"hash"`
 	Index       int    `json:"index" gorm:"type:int(6)"`
 	File        File   `json:"file"`
 }
@@ -36,7 +35,6 @@ func actionAttchGetAll(w http.ResponseWriter, r *http.Request) {
 		fileid      = r.FormValue("fileid")
 		title       = r.FormValue("title")
 		description = r.FormValue("description")
-		hash        = r.FormValue("hash")
 		sort        = r.FormValue("sort")
 		limit       = r.FormValue("limit")
 		offset      = r.FormValue("offset")
@@ -70,10 +68,6 @@ func actionAttchGetAll(w http.ResponseWriter, r *http.Request) {
 		db = db.Where("description LIKE ?", "%"+description+"%")
 	}
 
-	if hash != "" {
-		db = db.Where("hash = ?", hash)
-	}
-
 	if sort != "" {
 		db = db.Order(sort)
 	}
@@ -86,7 +80,7 @@ func actionAttchGetAll(w http.ResponseWriter, r *http.Request) {
 		db = db.Offset(offset)
 	}
 
-	db.Find(&attachments)
+	db.Preload("File").Find(&attachments)
 
 	rsp.Data = &attachments
 
